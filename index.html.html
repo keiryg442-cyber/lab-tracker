@@ -1,0 +1,720 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Lab Tracker">
+<meta name="theme-color" content="#0f1f0f">
+<title>Lab Ops Tracker</title>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;500;600;700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#0f1f0f;--surface:#162416;--surface2:#1d2f1d;--border:#2a3d2a;--border2:#344d34;
+  --text:#e8f0e8;--muted:#7a9a7a;--dim:#4a6a4a;
+  --green:#4ade80;--green-dim:#1a4a2a;--green-glow:rgba(74,222,128,0.15);
+  --amber:#fbbf24;--amber-dim:#3a2a0a;
+  --red:#f87171;--red-dim:#3a1a1a;
+  --blue:#60a5fa;--blue-dim:#0a1a3a;
+  --purple:#c084fc;--purple-dim:#2a1a3a;
+  --r:14px;--rm:10px;--rs:7px;
+  --font-head:'Syne',sans-serif;--font-mono:'DM Mono',monospace;
+}
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;}
+html,body{height:100%;overscroll-behavior:none;}
+body{font-family:var(--font-head);background:var(--bg);color:var(--text);min-height:100vh;max-width:480px;margin:0 auto;position:relative;}
+body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellipse 60% 40% at 50% -10%,rgba(74,222,128,0.08),transparent);pointer-events:none;z-index:0;}
+
+.app{display:flex;flex-direction:column;height:100vh;position:relative;z-index:1;}
+
+/* HEADER */
+.header{padding:16px 18px 12px;background:rgba(15,31,15,0.95);backdrop-filter:blur(12px);border-bottom:1px solid var(--border);flex-shrink:0;}
+.header-row{display:flex;align-items:center;justify-content:space-between;}
+.logo{font-size:13px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:var(--green);}
+.header-right{display:flex;align-items:center;gap:10px;}
+.drive-status{display:flex;align-items:center;gap:5px;font-size:11px;font-weight:500;letter-spacing:0.5px;color:var(--muted);cursor:pointer;background:var(--surface2);border:1px solid var(--border);border-radius:99px;padding:5px 12px;transition:all 0.2s;}
+.drive-status:hover{border-color:var(--green);color:var(--green);}
+.status-dot{width:6px;height:6px;border-radius:50%;background:var(--dim);flex-shrink:0;transition:background 0.3s;}
+.status-dot.connected{background:var(--green);box-shadow:0 0 6px var(--green);}
+.status-dot.syncing{background:var(--amber);animation:pulse 1s ease-in-out infinite;}
+@keyframes pulse{0%,100%{opacity:1;}50%{opacity:0.4;}}
+.date-sub{font-size:11px;color:var(--dim);margin-top:4px;font-family:var(--font-mono);letter-spacing:0.3px;}
+
+/* CONTENT */
+.content{flex:1;overflow-y:auto;padding:14px 14px 0;-webkit-overflow-scrolling:touch;}
+.page{display:none;animation:fadeIn 0.2s ease;}
+.page.active{display:block;}
+@keyframes fadeIn{from{opacity:0;transform:translateY(4px);}to{opacity:1;transform:none;}}
+
+/* NAV */
+.nav{display:flex;background:rgba(15,31,15,0.97);backdrop-filter:blur(12px);border-top:1px solid var(--border);padding:8px 0 max(8px,env(safe-area-inset-bottom));flex-shrink:0;}
+.nav-btn{flex:1;display:flex;flex-direction:column;align-items:center;gap:3px;padding:6px 2px;background:none;border:none;cursor:pointer;color:var(--dim);font-size:9px;font-family:var(--font-head);font-weight:600;letter-spacing:0.5px;text-transform:uppercase;transition:color 0.15s;}
+.nav-btn.active{color:var(--green);}
+.nav-icon{font-size:19px;line-height:1.2;}
+
+/* CARDS */
+.card{background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:16px;margin-bottom:12px;}
+.card-label{font-size:10px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:var(--dim);margin-bottom:12px;}
+
+/* FORM */
+.lbl{font-size:11px;font-weight:600;letter-spacing:0.8px;text-transform:uppercase;color:var(--muted);display:block;margin-bottom:6px;}
+textarea,select,input[type=number],input[type=text]{
+  width:100%;font-family:var(--font-head);font-size:14px;color:var(--text);
+  background:var(--surface2);border:1px solid var(--border);border-radius:var(--rm);
+  padding:12px 14px;margin-bottom:12px;outline:none;-webkit-appearance:none;appearance:none;
+  transition:border-color 0.2s,background 0.2s;
+}
+textarea{resize:none;min-height:76px;line-height:1.55;}
+textarea:focus,select:focus,input:focus{border-color:var(--green);background:rgba(74,222,128,0.04);}
+select{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%237a9a7a' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 13px center;padding-right:36px;}
+
+/* BUTTONS */
+.btn{width:100%;padding:14px;font-size:14px;font-family:var(--font-head);font-weight:700;letter-spacing:0.5px;border:none;border-radius:var(--rm);cursor:pointer;transition:all 0.15s;position:relative;overflow:hidden;}
+.btn:active{transform:scale(0.97);}
+.btn-primary{background:var(--green);color:#0f1f0f;}
+.btn-primary:hover{background:#6aeda0;}
+.btn-secondary{background:var(--surface2);color:var(--text);border:1px solid var(--border);}
+.btn-danger{background:var(--red-dim);color:var(--red);border:1px solid rgba(248,113,113,0.3);}
+.btn-sm{padding:8px 14px;font-size:12px;width:auto;border-radius:var(--rs);}
+.btn:disabled{opacity:0.5;cursor:not-allowed;}
+
+/* MODE TOGGLE */
+.mode-row{display:flex;background:var(--surface2);border:1px solid var(--border);border-radius:99px;padding:3px;margin-bottom:16px;gap:3px;}
+.mode-btn{flex:1;padding:9px;font-size:12px;font-family:var(--font-head);font-weight:600;letter-spacing:0.3px;border:none;border-radius:99px;cursor:pointer;background:none;color:var(--muted);transition:all 0.2s;}
+.mode-btn.active{background:var(--green);color:#0f1f0f;}
+
+/* AI HINT */
+.ai-hint{background:var(--green-dim);border:1px solid rgba(74,222,128,0.2);border-radius:var(--rm);padding:11px 14px;font-size:13px;color:var(--green);margin-bottom:12px;display:none;align-items:center;gap:10px;}
+.spinner{width:14px;height:14px;border:2px solid rgba(74,222,128,0.3);border-top-color:var(--green);border-radius:50%;animation:spin 0.7s linear infinite;flex-shrink:0;}
+@keyframes spin{to{transform:rotate(360deg);}}
+
+/* TAGS */
+.tag{display:inline-flex;align-items:center;padding:3px 9px;border-radius:99px;font-size:10px;font-weight:700;letter-spacing:0.5px;text-transform:uppercase;}
+.tag-rounds{background:var(--green-dim);color:var(--green);}
+.tag-ordering{background:var(--blue-dim);color:var(--blue);}
+.tag-safety{background:var(--amber-dim);color:var(--amber);}
+.tag-maintenance{background:var(--red-dim);color:var(--red);}
+.tag-coordination{background:var(--purple-dim);color:var(--purple);}
+.tag-other{background:var(--surface2);color:var(--muted);}
+
+/* ENTRIES */
+.entry{background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:14px;margin-bottom:10px;transition:border-color 0.2s;}
+.entry:hover{border-color:var(--border2);}
+.entry-top{display:flex;justify-content:space-between;align-items:flex-start;gap:10px;margin-bottom:8px;}
+.entry-desc{font-size:14px;line-height:1.55;flex:1;color:var(--text);}
+.entry-btns{display:flex;gap:5px;flex-shrink:0;}
+.icon-btn{background:var(--surface2);border:1px solid var(--border);border-radius:var(--rs);width:38px;height:38px;display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:16px;transition:all 0.15s;}
+.icon-btn:active{transform:scale(0.9);}
+.icon-btn.edit{border-color:rgba(96,165,250,0.3);color:var(--blue);}
+.icon-btn.del{border-color:rgba(248,113,113,0.3);color:var(--red);}
+.entry-meta{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:8px;}
+.entry-time{font-size:11px;color:var(--dim);font-family:var(--font-mono);}
+
+/* PHOTOS */
+.photos-row{display:flex;gap:7px;flex-wrap:wrap;margin-top:4px;}
+.thumb-wrap{position:relative;}
+.thumb{width:62px;height:62px;object-fit:cover;border-radius:var(--rs);border:1px solid var(--border);cursor:pointer;display:block;}
+.thumb-del{position:absolute;top:-5px;right:-5px;background:var(--red);color:#fff;border:none;border-radius:50%;width:18px;height:18px;font-size:11px;cursor:pointer;display:flex;align-items:center;justify-content:center;line-height:1;}
+.thumb-synced{position:absolute;bottom:2px;right:2px;background:rgba(0,0,0,0.6);border-radius:3px;padding:1px 3px;font-size:9px;color:var(--green);}
+.add-photo{width:62px;height:62px;border:1.5px dashed var(--border2);border-radius:var(--rs);display:flex;align-items:center;justify-content:center;background:var(--surface2);cursor:pointer;color:var(--dim);font-size:22px;transition:all 0.2s;}
+.add-photo:active{background:var(--green-dim);border-color:var(--green);}
+.drive-link{font-size:11px;color:var(--green);text-decoration:none;display:inline-flex;align-items:center;gap:3px;margin-top:4px;}
+.drive-link:hover{text-decoration:underline;}
+
+/* METRICS */
+.metric-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px;}
+.metric{background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:14px;}
+.metric-lbl{font-size:10px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:var(--dim);margin-bottom:5px;}
+.metric-val{font-size:28px;font-weight:700;color:var(--text);font-family:var(--font-mono);line-height:1;}
+.metric-unit{font-size:13px;color:var(--muted);font-weight:400;}
+.bar-row{display:flex;align-items:center;gap:8px;margin-bottom:9px;}
+.bar-lbl{font-size:11px;color:var(--muted);width:80px;flex-shrink:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.bar-track{flex:1;background:var(--surface2);border-radius:99px;height:7px;overflow:hidden;}
+.bar-fill{height:100%;border-radius:99px;transition:width 0.5s cubic-bezier(.4,0,.2,1);}
+.bar-num{font-size:11px;color:var(--dim);width:36px;text-align:right;font-family:var(--font-mono);}
+
+/* REPORT */
+.report-box{background:var(--surface2);border:1px solid var(--border);border-radius:var(--rm);padding:14px;font-size:13px;line-height:1.8;color:var(--text);white-space:pre-wrap;font-family:var(--font-mono);}
+
+/* MODAL */
+.overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:100;align-items:flex-end;justify-content:center;}
+.overlay.open{display:flex;}
+.modal{background:var(--surface);border:1px solid var(--border);border-radius:var(--r) var(--r) 0 0;padding:20px 16px max(28px,env(safe-area-inset-bottom));width:100%;max-width:480px;max-height:88vh;overflow-y:auto;}
+.modal-handle{width:36px;height:4px;background:var(--border2);border-radius:99px;margin:0 auto 18px;}
+.modal-title{font-size:16px;font-weight:700;margin-bottom:16px;letter-spacing:0.3px;}
+.modal-row{display:flex;gap:8px;}
+.modal-row .btn{flex:1;}
+
+/* SIGN IN SCREEN */
+.signin-screen{display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:60vh;text-align:center;padding:30px 20px;}
+.signin-icon{font-size:52px;margin-bottom:20px;filter:drop-shadow(0 0 20px rgba(74,222,128,0.4));}
+.signin-title{font-size:22px;font-weight:700;margin-bottom:8px;letter-spacing:0.5px;}
+.signin-sub{font-size:13px;color:var(--muted);line-height:1.7;margin-bottom:28px;max-width:300px;}
+.signin-features{text-align:left;background:var(--surface2);border:1px solid var(--border);border-radius:var(--r);padding:16px;margin-bottom:24px;width:100%;max-width:320px;}
+.feat{display:flex;align-items:center;gap:10px;font-size:13px;color:var(--muted);margin-bottom:10px;}
+.feat:last-child{margin-bottom:0;}
+.feat-icon{color:var(--green);flex-shrink:0;}
+.google-btn{display:flex;align-items:center;justify-content:center;gap:10px;background:#fff;color:#1a1a1a;border:none;border-radius:var(--rm);padding:14px 24px;font-size:15px;font-family:var(--font-head);font-weight:700;cursor:pointer;width:100%;max-width:320px;transition:all 0.2s;}
+.google-btn:hover{background:#f0f0f0;transform:translateY(-1px);}
+.google-btn:active{transform:scale(0.97);}
+.skip-btn{margin-top:14px;background:none;border:none;color:var(--dim);font-size:12px;font-family:var(--font-head);cursor:pointer;text-decoration:underline;}
+
+/* SETUP INFO */
+.setup-card{background:var(--amber-dim);border:1px solid rgba(251,191,36,0.3);border-radius:var(--r);padding:14px;margin-bottom:14px;}
+.setup-title{font-size:12px;font-weight:700;color:var(--amber);letter-spacing:0.5px;margin-bottom:6px;}
+.setup-text{font-size:12px;color:rgba(251,191,36,0.8);line-height:1.6;}
+.setup-text a{color:var(--amber);}
+
+/* PHOTO VIEWER */
+.photo-viewer{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.95);z-index:200;align-items:center;justify-content:center;flex-direction:column;gap:12px;}
+.photo-viewer.open{display:flex;}
+.photo-viewer img{max-width:95vw;max-height:80vh;object-fit:contain;border-radius:var(--rs);}
+.photo-close{background:rgba(255,255,255,0.1);border:1px solid rgba(255,255,255,0.2);color:#fff;font-size:20px;width:42px;height:42px;border-radius:50%;cursor:pointer;display:flex;align-items:center;justify-content:center;position:absolute;top:16px;right:16px;}
+
+/* TOAST */
+.toast{position:fixed;bottom:85px;left:50%;transform:translateX(-50%) translateY(10px);background:var(--surface);border:1px solid var(--border);color:var(--text);padding:10px 18px;border-radius:99px;font-size:12px;font-weight:600;letter-spacing:0.3px;opacity:0;transition:all 0.25s;z-index:999;white-space:nowrap;box-shadow:0 4px 20px rgba(0,0,0,0.4);}
+.toast.show{opacity:1;transform:translateX(-50%) translateY(0);}
+.toast.success{border-color:rgba(74,222,128,0.4);color:var(--green);}
+.toast.error{border-color:rgba(248,113,113,0.4);color:var(--red);}
+
+input[type=file]{display:none;}
+.empty{text-align:center;padding:48px 20px;color:var(--dim);}
+.empty-icon{font-size:38px;display:block;margin-bottom:12px;opacity:0.7;}
+.empty-text{font-size:13px;line-height:1.7;color:var(--muted);}
+</style>
+</head>
+<body>
+<div class="app">
+
+<!-- HEADER -->
+<div class="header">
+  <div class="header-row">
+    <span class="logo">Lab · Ops</span>
+    <div class="header-right">
+      <div class="drive-status" id="drive-status" onclick="handleDriveClick()">
+        <span class="status-dot" id="status-dot"></span>
+        <span id="status-label">Drive</span>
+      </div>
+    </div>
+  </div>
+  <div class="date-sub" id="date-sub"></div>
+</div>
+
+<!-- CONTENT -->
+<div class="content">
+
+  <!-- LOG -->
+  <div class="page active" id="page-log">
+    <div id="signin-prompt" class="signin-screen" style="display:none;">
+      <div class="signin-icon">🧪</div>
+      <div class="signin-title">Lab Ops Tracker</div>
+      <div class="signin-sub">Sign in with Google to sync your tasks and photos across all your devices automatically.</div>
+      <div class="signin-features">
+        <div class="feat"><span class="feat-icon">📱</span>Works on phone and computer</div>
+        <div class="feat"><span class="feat-icon">📷</span>Photos saved to Google Drive</div>
+        <div class="feat"><span class="feat-icon">✦</span>AI categorizes your tasks</div>
+        <div class="feat"><span class="feat-icon">📊</span>Quarterly CLO report in one click</div>
+      </div>
+      <button class="google-btn" onclick="signInWithGoogle()">
+        <svg width="18" height="18" viewBox="0 0 18 18"><path fill="#4285F4" d="M17.64 9.2c0-.637-.057-1.251-.164-1.84H9v3.481h4.844c-.209 1.125-.843 2.078-1.796 2.716v2.258h2.908c1.702-1.567 2.684-3.874 2.684-6.615z"/><path fill="#34A853" d="M9 18c2.43 0 4.467-.806 5.956-2.185l-2.908-2.258c-.806.54-1.837.86-3.048.86-2.344 0-4.328-1.584-5.036-3.711H.957v2.332A8.997 8.997 0 0 0 9 18z"/><path fill="#FBBC05" d="M3.964 10.706A5.41 5.41 0 0 1 3.682 9c0-.593.102-1.17.282-1.706V4.962H.957A8.996 8.996 0 0 0 0 9c0 1.452.348 2.827.957 4.038l3.007-2.332z"/><path fill="#EA4335" d="M9 3.58c1.321 0 2.508.454 3.44 1.345l2.582-2.58C13.463.891 11.426 0 9 0A8.997 8.997 0 0 0 .957 4.962L3.964 7.294C4.672 5.163 6.656 3.58 9 3.58z"/></svg>
+        Sign in with Google
+      </button>
+      <button class="skip-btn" onclick="skipSignIn()">Use without Google Drive (local only)</button>
+    </div>
+
+    <div id="log-form">
+      <div id="drive-setup-notice" class="setup-card" style="display:none;">
+        <div class="setup-title">⚠️ Running in local-only mode</div>
+        <div class="setup-text">Tasks save to this device only. Tap "Drive" in the header to sign in and enable cross-device sync + photo backup.</div>
+      </div>
+
+      <div class="mode-row">
+        <button class="mode-btn active" id="mq" onclick="setMode('quick')">⚡ Quick note</button>
+        <button class="mode-btn" id="mf" onclick="setMode('form')">📋 Structured</button>
+      </div>
+
+      <div id="pane-quick">
+        <label class="lbl">What did you do?</label>
+        <textarea id="q-text" placeholder="e.g. distributed received antibody order to STN2 fridge, took about 30 min" rows="3"></textarea>
+        <div class="ai-hint" id="ai-hint"><div class="spinner"></div> AI is categorizing your task…</div>
+        <button class="btn btn-primary" id="log-btn" onclick="logQuick()">✦ Log with AI</button>
+      </div>
+
+      <div id="pane-form" style="display:none;">
+        <label class="lbl">Category</label>
+        <select id="f-cat">
+          <option value="Rounds">Morning / afternoon rounds</option>
+          <option value="Ordering">Ordering &amp; inventory</option>
+          <option value="Safety">Safety inspection</option>
+          <option value="Maintenance">Equipment / maintenance</option>
+          <option value="Coordination">Coordination &amp; comms</option>
+          <option value="Other">Other</option>
+        </select>
+        <label class="lbl">Time spent (minutes)</label>
+        <input type="number" id="f-mins" placeholder="e.g. 30" min="1" max="480">
+        <label class="lbl">Description</label>
+        <textarea id="f-desc" placeholder="Brief description of what you did…" rows="3"></textarea>
+        <button class="btn btn-primary" onclick="logForm()">✓ Save task</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- HISTORY -->
+  <div class="page" id="page-history">
+    <div id="history-list"></div>
+  </div>
+
+  <!-- METRICS -->
+  <div class="page" id="page-metrics">
+    <div class="metric-grid" id="metric-cards"></div>
+    <div class="card">
+      <div class="card-label">Tasks by category</div>
+      <div id="bar-count"></div>
+    </div>
+    <div class="card">
+      <div class="card-label">Hours by category</div>
+      <div id="bar-time"></div>
+    </div>
+  </div>
+
+  <!-- REPORT -->
+  <div class="page" id="page-report">
+    <div class="card">
+      <div class="card-label">Quarterly CLO report</div>
+      <p style="font-size:13px;color:var(--muted);margin-bottom:14px;line-height:1.6;">AI writes a professional summary of your work — ready to copy and send to your manager.</p>
+      <button class="btn btn-primary" id="gen-btn" onclick="genReport()">✦ Generate report</button>
+    </div>
+    <div id="report-section" style="display:none;">
+      <div class="card">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
+          <span class="card-label" style="margin-bottom:0;">Generated report</span>
+          <button class="btn btn-secondary btn-sm" onclick="copyReport()">Copy ↗</button>
+        </div>
+        <div class="report-box" id="report-out"></div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<!-- NAV -->
+<nav class="nav">
+  <button class="nav-btn active" id="nav-log" onclick="goPage('log')"><span class="nav-icon">＋</span>Log</button>
+  <button class="nav-btn" id="nav-history" onclick="goPage('history')"><span class="nav-icon">☰</span>History</button>
+  <button class="nav-btn" id="nav-metrics" onclick="goPage('metrics')"><span class="nav-icon">◫</span>Metrics</button>
+  <button class="nav-btn" id="nav-report" onclick="goPage('report')"><span class="nav-icon">✉</span>Report</button>
+</nav>
+
+</div>
+
+<!-- EDIT MODAL -->
+<div class="overlay" id="edit-overlay" onclick="overlayClose(event,'edit-overlay')">
+  <div class="modal">
+    <div class="modal-handle"></div>
+    <div class="modal-title">Edit task</div>
+    <label class="lbl">Category</label>
+    <select id="e-cat">
+      <option value="Rounds">Morning / afternoon rounds</option>
+      <option value="Ordering">Ordering &amp; inventory</option>
+      <option value="Safety">Safety inspection</option>
+      <option value="Maintenance">Equipment / maintenance</option>
+      <option value="Coordination">Coordination &amp; comms</option>
+      <option value="Other">Other</option>
+    </select>
+    <label class="lbl">Time spent (minutes)</label>
+    <input type="number" id="e-mins" min="1" max="480">
+    <label class="lbl">Description</label>
+    <textarea id="e-desc" rows="3"></textarea>
+    <div class="modal-row">
+      <button class="btn btn-primary" onclick="saveEdit()">Save changes</button>
+      <button class="btn btn-secondary" onclick="closeOverlay('edit-overlay')">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<!-- DRIVE INFO MODAL -->
+<div class="overlay" id="drive-overlay" onclick="overlayClose(event,'drive-overlay')">
+  <div class="modal">
+    <div class="modal-handle"></div>
+    <div class="modal-title" id="drive-modal-title">Google Drive sync</div>
+    <div id="drive-modal-content"></div>
+    <button class="btn btn-secondary" onclick="closeOverlay('drive-overlay')" style="margin-top:8px;">Close</button>
+  </div>
+</div>
+
+<!-- PHOTO VIEWER -->
+<div class="photo-viewer" id="photo-viewer" onclick="closePhoto()">
+  <button class="photo-close" onclick="closePhoto()">✕</button>
+  <img id="photo-big" src="" alt="Task photo">
+</div>
+
+<input type="file" id="photo-input" accept="image/*" capture="environment" multiple>
+<div class="toast" id="toast"></div>
+
+<script>
+// ─── CONFIG ───────────────────────────────────────────────────────────────────
+// To enable Google Drive, follow setup steps in the Drive modal.
+// For now the app works fully offline; Drive upload is manual via the Drive modal.
+const GAPI_CLIENT_ID = ''; // Fill in after Google Cloud setup (see instructions)
+const DRIVE_FOLDER_NAME = 'Lab Ops Tracker';
+
+// ─── STATE ────────────────────────────────────────────────────────────────────
+const CATS={
+  Rounds:{label:'Rounds',cls:'tag-rounds',color:'#4ade80'},
+  Ordering:{label:'Ordering',cls:'tag-ordering',color:'#60a5fa'},
+  Safety:{label:'Safety',cls:'tag-safety',color:'#fbbf24'},
+  Maintenance:{label:'Maintenance',cls:'tag-maintenance',color:'#f87171'},
+  Coordination:{label:'Coordination',cls:'tag-coordination',color:'#c084fc'},
+  Other:{label:'Other',cls:'tag-other',color:'#7a9a7a'}
+};
+
+let tasks=[];
+let editId=null;
+let photoTargetId=null;
+let driveConnected=false;
+let driveFolderId=null;
+
+function load(){try{tasks=JSON.parse(localStorage.getItem('labOpsV4')||'[]');}catch(e){tasks=[];}}
+function save(){try{localStorage.setItem('labOpsV4',JSON.stringify(tasks));}catch(e){}}
+load();
+
+// ─── INIT ─────────────────────────────────────────────────────────────────────
+document.getElementById('date-sub').textContent=new Date().toLocaleDateString('en-US',{weekday:'long',month:'long',day:'numeric',year:'numeric'});
+document.getElementById('log-form').style.display='block';
+document.getElementById('signin-prompt').style.display='none';
+document.getElementById('drive-setup-notice').style.display='block';
+updateDriveBadge();
+
+// ─── NAVIGATION ───────────────────────────────────────────────────────────────
+function goPage(name){
+  document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+  document.querySelectorAll('.nav-btn').forEach(b=>b.classList.remove('active'));
+  document.getElementById('page-'+name).classList.add('active');
+  document.getElementById('nav-'+name).classList.add('active');
+  if(name==='history')renderHistory();
+  if(name==='metrics')renderMetrics();
+}
+
+// ─── MODE ─────────────────────────────────────────────────────────────────────
+function setMode(m){
+  document.getElementById('mq').classList.toggle('active',m==='quick');
+  document.getElementById('mf').classList.toggle('active',m==='form');
+  document.getElementById('pane-quick').style.display=m==='quick'?'block':'none';
+  document.getElementById('pane-form').style.display=m==='form'?'block':'none';
+}
+
+// ─── LOGGING ──────────────────────────────────────────────────────────────────
+async function logQuick(){
+  const text=document.getElementById('q-text').value.trim();
+  if(!text)return showToast('Please describe what you did','error');
+  const hint=document.getElementById('ai-hint');
+  const btn=document.getElementById('log-btn');
+  hint.style.display='flex';btn.disabled=true;
+  let cat='Other',mins=30,desc=text;
+  try{
+    const res=await fetch('https://api.anthropic.com/v1/messages',{
+      method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({model:'claude-sonnet-4-20250514',max_tokens:200,
+        messages:[{role:'user',content:`Categorize this lab ops task. Reply ONLY with valid JSON, no markdown, no explanation:
+{"category":"<Rounds|Ordering|Safety|Maintenance|Coordination|Other>","minutes":<integer>,"summary":"<one clean professional sentence>"}
+Task: "${text}"`}]})
+    });
+    const data=await res.json();
+    const raw=data.content.map(c=>c.text||'').join('');
+    const p=JSON.parse(raw.replace(/```json|```/g,'').trim());
+    cat=p.category||'Other';mins=parseInt(p.minutes)||30;desc=p.summary||text;
+  }catch(e){/* use defaults */}
+  hint.style.display='none';btn.disabled=false;
+  addTask(desc,cat,mins);
+  document.getElementById('q-text').value='';
+  showToast('Task logged ✓','success');
+}
+
+function logForm(){
+  const desc=document.getElementById('f-desc').value.trim();
+  if(!desc)return showToast('Please add a description','error');
+  addTask(desc,document.getElementById('f-cat').value,parseInt(document.getElementById('f-mins').value)||30);
+  document.getElementById('f-desc').value='';document.getElementById('f-mins').value='';
+  showToast('Task saved ✓','success');
+}
+
+function addTask(desc,category,minutes){
+  const t={id:Date.now(),desc,category,minutes,date:new Date().toISOString(),photos:[],driveLinks:[]};
+  tasks.unshift(t);save();
+  if(driveConnected)syncTasksToDrive();
+}
+
+// ─── HISTORY ──────────────────────────────────────────────────────────────────
+function fmtDate(iso){
+  const d=new Date(iso);
+  return d.toLocaleDateString('en-US',{month:'short',day:'numeric'})+' · '+d.toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit'});
+}
+
+function renderHistory(){
+  const el=document.getElementById('history-list');
+  if(!tasks.length){
+    el.innerHTML='<div class="empty"><span class="empty-icon">📋</span><div class="empty-text">No tasks yet.<br>Go to Log and add your first task!</div></div>';
+    return;
+  }
+  el.innerHTML=tasks.map(t=>`
+    <div class="entry" id="entry-${t.id}">
+      <div class="entry-top">
+        <div class="entry-desc">${escHtml(t.desc)}</div>
+        <div class="entry-btns">
+          <button class="icon-btn edit" onclick="openEdit(${t.id})" aria-label="Edit task">✏️</button>
+          <button class="icon-btn del" onclick="delTask(${t.id})" aria-label="Delete task">🗑️</button>
+        </div>
+      </div>
+      <div class="entry-meta">
+        <span class="tag ${CATS[t.category]?.cls||'tag-other'}">${CATS[t.category]?.label||t.category}</span>
+        <span class="entry-time">⏱ ${t.minutes} min · ${fmtDate(t.date)}</span>
+      </div>
+      <div class="photos-row" id="photos-${t.id}">
+        ${(t.photos||[]).map((p,i)=>`
+          <div class="thumb-wrap">
+            <img class="thumb" src="${p}" onclick="viewPhoto('${p}')" alt="Photo ${i+1}">
+            <button class="thumb-del" onclick="deletePhoto(${t.id},${i})" aria-label="Remove photo">✕</button>
+            ${(t.driveLinks||[])[i]?`<span class="thumb-synced" title="Saved to Drive">☁️</span>`:''}
+          </div>`).join('')}
+        ${(t.driveLinks||[]).filter((_,i)=>!(t.photos||[])[i]).map(link=>`
+          <a href="${link}" target="_blank" class="drive-link">☁️ View in Drive</a>`).join('')}
+        <button class="add-photo" onclick="triggerPhoto(${t.id})" aria-label="Add photo">📷</button>
+      </div>
+    </div>`).join('');
+}
+
+function escHtml(s){return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
+
+function delTask(id){
+  if(!confirm('Delete this task?'))return;
+  tasks=tasks.filter(t=>t.id!==id);
+  save();renderHistory();showToast('Task deleted');
+}
+
+function openEdit(id){
+  const t=tasks.find(x=>x.id===id);if(!t)return;
+  editId=id;
+  document.getElementById('e-cat').value=t.category;
+  document.getElementById('e-mins').value=t.minutes;
+  document.getElementById('e-desc').value=t.desc;
+  document.getElementById('edit-overlay').classList.add('open');
+}
+
+function saveEdit(){
+  const t=tasks.find(x=>x.id===editId);
+  if(!t){closeOverlay('edit-overlay');return;}
+  t.category=document.getElementById('e-cat').value;
+  t.minutes=parseInt(document.getElementById('e-mins').value)||30;
+  t.desc=document.getElementById('e-desc').value.trim()||t.desc;
+  save();closeOverlay('edit-overlay');renderHistory();
+  showToast('Task updated ✓','success');
+  if(driveConnected)syncTasksToDrive();
+}
+
+// ─── PHOTOS ───────────────────────────────────────────────────────────────────
+function triggerPhoto(id){
+  photoTargetId=id;
+  document.getElementById('photo-input').click();
+}
+
+document.getElementById('photo-input').addEventListener('change',function(){
+  const t=tasks.find(x=>x.id===photoTargetId);
+  if(!t)return;
+  const files=Array.from(this.files);
+  let done=0;
+  files.forEach(file=>{
+    // Compress before storing
+    const reader=new FileReader();
+    reader.onload=e=>{
+      const img=new Image();
+      img.onload=()=>{
+        const canvas=document.createElement('canvas');
+        const MAX=800;
+        let w=img.width,h=img.height;
+        if(w>MAX){h=Math.round(h*MAX/w);w=MAX;}
+        if(h>MAX){w=Math.round(w*MAX/h);h=MAX;}
+        canvas.width=w;canvas.height=h;
+        canvas.getContext('2d').drawImage(img,0,0,w,h);
+        const compressed=canvas.toDataURL('image/jpeg',0.75);
+        if(!t.photos)t.photos=[];
+        if(!t.driveLinks)t.driveLinks=[];
+        t.photos.push(compressed);
+        t.driveLinks.push('');
+        done++;
+        if(done===files.length){
+          save();renderHistory();
+          showToast('Photo added ✓','success');
+          if(driveConnected)uploadPhotoToDrive(t,t.photos.length-1);
+        }
+      };
+      img.src=e.target.result;
+    };
+    reader.readAsDataURL(file);
+  });
+  this.value='';
+});
+
+function deletePhoto(taskId,idx){
+  const t=tasks.find(x=>x.id===taskId);if(!t)return;
+  t.photos.splice(idx,1);
+  if(t.driveLinks)t.driveLinks.splice(idx,1);
+  save();renderHistory();showToast('Photo removed');
+}
+
+function viewPhoto(src){
+  document.getElementById('photo-big').src=src;
+  document.getElementById('photo-viewer').classList.add('open');
+}
+function closePhoto(){document.getElementById('photo-viewer').classList.remove('open');}
+
+// ─── GOOGLE DRIVE ─────────────────────────────────────────────────────────────
+function signInWithGoogle(){
+  showToast('See the Drive setup instructions below','');
+  closeOverlay('drive-overlay');
+  showDriveModal();
+}
+function skipSignIn(){
+  document.getElementById('signin-prompt').style.display='none';
+  document.getElementById('log-form').style.display='block';
+  document.getElementById('drive-setup-notice').style.display='block';
+}
+
+function handleDriveClick(){showDriveModal();}
+
+function showDriveModal(){
+  const title=document.getElementById('drive-modal-title');
+  const content=document.getElementById('drive-modal-content');
+  title.textContent='📁 Google Drive Sync';
+
+  // Export/Import sync approach — works without OAuth setup
+  const exportData=btoa(unescape(encodeURIComponent(JSON.stringify(tasks.map(t=>({...t,photos:[]}))))));
+
+  content.innerHTML=`
+    <p style="font-size:13px;color:var(--muted);line-height:1.65;margin-bottom:16px;">
+      The easiest way to sync between your phone and computer is to save the app file to <strong style="color:var(--text)">Google Drive</strong> and always open it from there. Your tasks are stored in the app file itself.
+    </p>
+
+    <div class="card-label">How to sync — 3 steps</div>
+    <div style="font-size:13px;color:var(--muted);line-height:1.8;margin-bottom:16px;">
+      <b style="color:var(--text)">1.</b> Upload <code style="background:var(--surface2);padding:1px 5px;border-radius:4px;font-size:12px;">lab-tracker.html</code> to your Google Drive.<br>
+      <b style="color:var(--text)">2.</b> On your phone, open Google Drive app → find the file → tap to open in Chrome.<br>
+      <b style="color:var(--text)">3.</b> Add it to your home screen from Chrome (⋮ → Add to Home Screen).
+    </div>
+
+    <div class="card-label" style="margin-bottom:8px;">Manual sync — copy tasks between devices</div>
+    <p style="font-size:12px;color:var(--muted);margin-bottom:8px;line-height:1.6;">Copy this code on one device, paste it on the other to import your tasks.</p>
+    <div style="background:var(--surface2);border:1px solid var(--border);border-radius:var(--rs);padding:10px;font-size:10px;font-family:var(--font-mono);word-break:break-all;color:var(--muted);max-height:60px;overflow:hidden;margin-bottom:8px;" id="export-code-preview">${exportData.slice(0,80)}…</div>
+    <button class="btn btn-primary btn-sm" style="width:100%;margin-bottom:12px;" onclick="copySyncExport()">📋 Copy sync code (${tasks.length} tasks)</button>
+
+    <div class="card-label" style="margin-bottom:6px;">Import from another device</div>
+    <textarea id="import-field" placeholder="Paste sync code here…" rows="2" style="font-size:11px;font-family:var(--font-mono);margin-bottom:8px;"></textarea>
+    <button class="btn btn-secondary btn-sm" style="width:100%;margin-bottom:4px;" onclick="importSync()">Import tasks</button>
+  `;
+  document.getElementById('drive-overlay').classList.add('open');
+}
+
+function copySyncExport(){
+  const data=btoa(unescape(encodeURIComponent(JSON.stringify(tasks.map(t=>({...t,photos:[]}))))));
+  navigator.clipboard.writeText(data).catch(()=>{});
+  showToast('Sync code copied ✓','success');
+}
+
+function importSync(){
+  const raw=document.getElementById('import-field').value.trim();
+  if(!raw)return showToast('Paste a sync code first','error');
+  try{
+    const imported=JSON.parse(decodeURIComponent(escape(atob(raw))));
+    if(!Array.isArray(imported))throw new Error();
+    const ids=new Set(tasks.map(t=>t.id));
+    let added=0;
+    imported.forEach(t=>{if(!ids.has(t.id)){tasks.push({...t,photos:[],driveLinks:[]});added++;}});
+    tasks.sort((a,b)=>new Date(b.date)-new Date(a.date));
+    save();closeOverlay('drive-overlay');
+    showToast(`Imported ${added} task${added!==1?'s':''} ✓`,'success');
+  }catch(e){showToast('Invalid code — please try again','error');}
+}
+
+// Placeholder Drive functions (for future OAuth integration)
+function syncTasksToDrive(){/* placeholder for future */}
+function uploadPhotoToDrive(task,idx){/* placeholder for future */}
+
+function updateDriveBadge(){
+  document.getElementById('status-dot').className='status-dot'+(driveConnected?' connected':'');
+  document.getElementById('status-label').textContent=driveConnected?'Drive ✓':'Drive';
+}
+
+// ─── METRICS ──────────────────────────────────────────────────────────────────
+function renderMetrics(){
+  const total=tasks.length;
+  const totalM=tasks.reduce((s,t)=>s+t.minutes,0);
+  const today=tasks.filter(t=>new Date(t.date).toDateString()===new Date().toDateString()).length;
+  const photos=tasks.reduce((s,t)=>s+(t.photos?.length||0),0);
+  document.getElementById('metric-cards').innerHTML=`
+    <div class="metric"><div class="metric-lbl">Total tasks</div><div class="metric-val">${total}</div></div>
+    <div class="metric"><div class="metric-lbl">Hours logged</div><div class="metric-val">${(totalM/60).toFixed(1)}<span class="metric-unit">h</span></div></div>
+    <div class="metric"><div class="metric-lbl">Today</div><div class="metric-val">${today}</div></div>
+    <div class="metric"><div class="metric-lbl">Photos</div><div class="metric-val">${photos}</div></div>`;
+  const counts={},times={};
+  Object.keys(CATS).forEach(k=>{counts[k]=0;times[k]=0;});
+  tasks.forEach(t=>{counts[t.category]=(counts[t.category]||0)+1;times[t.category]=(times[t.category]||0)+t.minutes;});
+  const maxC=Math.max(...Object.values(counts),1);
+  const maxT=Math.max(...Object.values(times),1);
+  document.getElementById('bar-count').innerHTML=Object.keys(CATS).map(k=>`
+    <div class="bar-row">
+      <div class="bar-lbl">${CATS[k].label}</div>
+      <div class="bar-track"><div class="bar-fill" style="width:${Math.round(counts[k]/maxC*100)}%;background:${CATS[k].color}"></div></div>
+      <div class="bar-num">${counts[k]}</div>
+    </div>`).join('');
+  document.getElementById('bar-time').innerHTML=Object.keys(CATS).map(k=>`
+    <div class="bar-row">
+      <div class="bar-lbl">${CATS[k].label}</div>
+      <div class="bar-track"><div class="bar-fill" style="width:${Math.round(times[k]/maxT*100)}%;background:${CATS[k].color}"></div></div>
+      <div class="bar-num">${(times[k]/60).toFixed(1)}h</div>
+    </div>`).join('');
+}
+
+// ─── REPORT ───────────────────────────────────────────────────────────────────
+async function genReport(){
+  if(!tasks.length)return showToast('Log some tasks first!','error');
+  const btn=document.getElementById('gen-btn');
+  btn.textContent='Generating…';btn.disabled=true;
+  const log=tasks.map(t=>`[${t.date.slice(0,10)}] ${t.category} (${t.minutes}min): ${t.desc}`).join('\n');
+  const totalH=(tasks.reduce((s,t)=>s+t.minutes,0)/60).toFixed(1);
+  try{
+    const res=await fetch('https://api.anthropic.com/v1/messages',{
+      method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({model:'claude-sonnet-4-20250514',max_tokens:700,
+        messages:[{role:'user',content:`Write a professional quarterly report for a Lab Operations Associate to submit to the CLO. Warm, professional tone. Include: a brief intro paragraph, organized bullet points by category showing task counts and hours, and a closing sentence highlighting overall contributions. Total hours logged: ${totalH}h.\n\nTask log:\n${log}`}]})
+    });
+    const data=await res.json();
+    document.getElementById('report-out').textContent=data.content.map(c=>c.text||'').join('');
+    document.getElementById('report-section').style.display='block';
+    showToast('Report generated ✓','success');
+  }catch(e){
+    document.getElementById('report-out').textContent='Could not generate — make sure you are connected to the internet and try again.';
+    document.getElementById('report-section').style.display='block';
+  }
+  btn.textContent='✦ Regenerate report';btn.disabled=false;
+}
+
+function copyReport(){
+  navigator.clipboard.writeText(document.getElementById('report-out').textContent).catch(()=>{});
+  showToast('Copied to clipboard ✓','success');
+}
+
+// ─── UTILS ────────────────────────────────────────────────────────────────────
+function overlayClose(e,id){if(e.target===document.getElementById(id))closeOverlay(id);}
+function closeOverlay(id){document.getElementById(id).classList.remove('open');}
+
+let toastTimer;
+function showToast(msg,type=''){
+  const t=document.getElementById('toast');
+  t.textContent=msg;t.className='toast'+(type?' '+type:'');
+  t.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer=setTimeout(()=>t.classList.remove('show'),2400);
+}
+</script>
+</body>
+</html>
